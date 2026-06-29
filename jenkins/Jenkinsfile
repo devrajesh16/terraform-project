@@ -21,9 +21,11 @@ pipeline {
     agent {
         // Use a Docker agent with Terraform pre-installed to avoid
         // polluting the Jenkins master with tool versions.
+        // Mount a persistent directory so the backend bootstrap state
+        // survives across builds (the workspace is wiped each run).
         docker {
             image 'hashicorp/terraform:1.6.6'
-            args  '--entrypoint=""'
+            args  '--entrypoint="" -v /var/lib/jenkins/tf-backend-state:/tf-backend-state'
         }
     }
 
@@ -64,6 +66,39 @@ pipeline {
             steps {
                 checkout scm
                 sh 'terraform version'
+            }
+        }
+
+        // ---------------------------------------------------------------
+        stage('Bootstrap Backend') {
+        // ---------------------------------------------------------------
+        // Creates the S3 bucket, DynamoDB table, and KMS key that all
+        // environment backends depend on.  Runs terraform apply in the
+        // backend/ directory using a state file persisted on the Jenkins
+        // host at /var/lib/jenkins/tf-backend-state so subsequent builds
+        // are a no-op when the bucket already exists.
+            steps {
+                dir('backend') {
+                    sh '''
+                        STATE_DIR=/tf-backend-state
+                        mkdir -p $STATE_DIR
+
+                        # Restore state from previous run so Terraform knows
+                        # the bucket already exists and skips re-creation.
+                        if [ -f "$STATE_DIR/terraform.tfstate" ]; then
+                            cp "$STATE_DIR/terraform.tfstate" .
+                        fi
+
+                        terraform init
+                        terraform apply \
+                            -auto-approve \
+                            -input=false \
+                            -var="aws_account_id=169588426347"
+
+                        # Persist state for the next build
+                        cp terraform.tfstate "$STATE_DIR/"
+                    '''
+                }
             }
         }
 
