@@ -18,15 +18,15 @@ variable "kms_key_arn" {
 }
 
 variable "engine_version" {
-  description = "PostgreSQL full version (e.g. 15.4)"
+  description = "PostgreSQL full version (e.g. 17.2)"
   type        = string
-  default     = "15.4"
+  default     = "17.2"
 }
 
 variable "engine_version_major" {
-  description = "Major PostgreSQL version for parameter group family (e.g. 15)"
+  description = "Major PostgreSQL version for parameter group family (e.g. 17)"
   type        = string
-  default     = "15"
+  default     = "17"
 }
 
 variable "instance_class" {
