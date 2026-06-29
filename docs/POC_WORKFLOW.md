@@ -25,6 +25,10 @@ aws sts get-caller-identity
 
 ## Step 1 — Bootstrap Remote State (once)
 
+> **Via Jenkins (recommended):** Skip this step entirely — the pipeline's Bootstrap Backend stage creates the S3 bucket, DynamoDB table, and KMS key automatically on the first run. The state file is persisted in the Jenkins workspace across builds so subsequent runs are a no-op.
+
+> **Manually (local runs only):**
+
 ```bash
 cd backend/
 
@@ -34,8 +38,7 @@ terraform apply \
   -var="aws_account_id=$(aws sts get-caller-identity --query Account --output text)"
 ```
 
-Expected output — note the S3 bucket name and DynamoDB table name printed.  
-Then update `environments/dev/versions.tf` backend block with the real bucket name.
+The bucket name `mycompany-terraform-state-169588426347` is already hardcoded in every environment's `versions.tf` — no further editing needed after the bucket is created.
 
 ---
 
@@ -222,14 +225,14 @@ If any resources show up, they can be removed manually from the AWS Console or w
 
 ## Cost While Running
 
-| Resource          | Rate          | Notes                              |
-|-------------------|---------------|------------------------------------|
-| EKS control plane | $0.10/hr      | Runs the entire time               |
-| NAT Gateway       | $0.045/hr     | + $0.045/GB data processed         |
-| t3.small ON_DEMAND | ~$0.021/hr   | 1 node                             |
-| RDS db.t3.micro   | Free tier     | 750 hrs/month, first 12 months     |
-| KMS (3 keys)      | $1/key/month  | Prorated — negligible for POC      |
-| ECR, CW, S3       | ~$0           | At POC scale                       |
+| Resource               | Rate           | Notes                                      |
+|------------------------|----------------|--------------------------------------------|
+| EKS control plane      | $0.10/hr       | Unavoidable — runs the entire time         |
+| NAT Gateway x2         | $0.045/hr each | One per AZ; + $0.045/GB data processed     |
+| t3.small ON_DEMAND x1  | ~$0.021/hr     | Single node, capacity_type = ON_DEMAND     |
+| RDS db.t3.micro        | Free tier      | 750 hrs/month for first 12 months          |
+| KMS (3 keys)           | $1/key/month   | Prorated — negligible for a POC            |
+| ECR, CloudWatch, S3    | ~$0            | At POC scale                               |
 
-**A 3-hour POC run costs roughly $0.50.**  
+**A 3-hour POC run costs roughly $0.60–$0.70.**  
 Destroy immediately after validation to avoid ongoing charges.

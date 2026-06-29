@@ -96,11 +96,13 @@ AWS Account
 | Feature                | dev               | stage             | prod              |
 |------------------------|-------------------|-------------------|-------------------|
 | EKS API endpoint       | Public            | Private           | Private           |
-| NAT Gateways           | 1                 | 3 (one per AZ)    | 3 (one per AZ)    |
-| Node capacity type     | SPOT              | ON_DEMAND         | ON_DEMAND         |
-| RDS instance           | db.t3.medium      | db.t3.large       | db.r6g.large      |
+| NAT Gateways           | 2 (one per AZ)    | 3 (one per AZ)    | 3 (one per AZ)    |
+| Node capacity type     | ON_DEMAND         | ON_DEMAND         | ON_DEMAND         |
+| Node instance type     | t3.small (x1)     | m5.large          | m5.large + m5.xlarge |
+| RDS instance           | db.t3.micro       | db.t3.large       | db.r6g.large      |
 | RDS Multi-AZ           | No                | Yes               | Yes               |
-| Redis nodes            | —                 | 2                 | 2                 |
+| RDS automated backups  | No (free tier)    | Yes               | Yes               |
+| Redis nodes            | None              | 2                 | 2                 |
 | Deletion protection    | No                | No                | Yes               |
 | VPC Flow Logs          | No                | Yes               | Yes               |
 | EKS log retention      | 7 days            | 30 days           | 90 days           |
@@ -111,13 +113,16 @@ AWS Account
 
 ### Step 1 — Bootstrap remote state (once per AWS account)
 
+> **Via Jenkins (recommended):** The pipeline's **Bootstrap Backend** stage handles this automatically on the first run — no manual steps needed.
+
+> **Manually (local runs only):**
 ```bash
 cd backend/
 terraform init
 terraform apply -var="aws_account_id=$(aws sts get-caller-identity --query Account --output text)"
 ```
 
-Note the output — it prints the exact backend block to paste into each environment's `versions.tf`.
+The S3 backend bucket name (`mycompany-terraform-state-<ACCOUNT_ID>`) is already pre-configured in each environment's `versions.tf` — no manual editing required after the bucket is created.
 
 ### Step 2 — Deploy an environment
 
@@ -149,19 +154,32 @@ kubectl get pods -A
 The `jenkins/Jenkinsfile` runs these stages against the selected environment:
 
 ```
-Checkout  →  fmt check  →  validate  →  init  →  plan  →  [approval]  →  apply
+Checkout → Bootstrap Backend → fmt check → validate → init → plan → [approval] → apply
 ```
 
-- **dev**: auto-applies on every merge to `develop`
-- **stage / prod**: blocks on a manual approval step; plan is archived as a build artifact for audit
+| Stage | What it does |
+|-------|-------------|
+| Checkout | Pulls code, confirms Terraform version |
+| Bootstrap Backend | Creates S3 + DynamoDB + KMS for remote state (no-op after first run) |
+| Terraform Format Check | `terraform fmt -check` — fails fast on whitespace issues |
+| Terraform Validate | `terraform validate` with local backend — no AWS calls |
+| Terraform Init | Connects to S3 remote backend |
+| Terraform Plan | Generates `tfplan` artifact, archived for audit |
+| Manual Approval | Blocks on human approval for stage, prod, and any destroy |
+| Terraform Apply / Destroy | Executes the approved plan |
+| Post-Apply Outputs | Archives `terraform-outputs.json` |
+
+- **dev apply**: auto-proceeds (no approval gate)
+- **stage / prod apply**: requires manual approval
+- **any destroy**: requires manual approval regardless of environment
 
 ### Required Jenkins credentials
 
-| Credential ID            | Type        | Purpose                  |
-|--------------------------|-------------|--------------------------|
-| `AWS_ACCESS_KEY_ID`      | Secret text | AWS authentication       |
-| `AWS_SECRET_ACCESS_KEY`  | Secret text | AWS authentication       |
-| `TF_VAR_db_password`     | Secret text | RDS password injection   |
+| Credential ID            | Type        | Purpose                                        |
+|--------------------------|-------------|------------------------------------------------|
+| `AWS_ACCESS_KEY_ID`      | Secret text | AWS authentication                             |
+| `AWS_SECRET_ACCESS_KEY`  | Secret text | AWS authentication                             |
+| `TF_VAR_db_password`     | Secret text | RDS master password (min 8 chars, no `@/\"'\`) |
 
 ---
 
