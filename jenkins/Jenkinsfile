@@ -64,7 +64,6 @@ pipeline {
             steps {
                 checkout scm
                 sh 'terraform version'
-                sh 'aws --version'
             }
         }
 
