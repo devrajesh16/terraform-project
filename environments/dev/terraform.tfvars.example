@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and fill in values.
+# NEVER commit terraform.tfvars — it is git-ignored.
+
+aws_region   = "us-east-1"
+project_name = "mycompany"
+
+kubernetes_version = "1.30"
+
+# Restrict to your own IP to avoid exposing the EKS API publicly
+# Find your IP: curl -s https://checkip.amazonaws.com
+developer_cidrs = ["YOUR_PUBLIC_IP/32"]
+
+db_name     = "devdb"
+db_username = "devuser"
+db_password = "ChangeMe123!"

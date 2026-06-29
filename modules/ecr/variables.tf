@@ -15,6 +15,12 @@ variable "image_tag_mutability" {
   default     = "IMMUTABLE"
 }
 
+variable "force_delete" {
+  description = "Delete the repository even if it contains images. Set true for dev/POC so terraform destroy works cleanly."
+  type        = bool
+  default     = false
+}
+
 variable "kms_key_arn" {
   description = "KMS key ARN for image encryption"
   type        = string

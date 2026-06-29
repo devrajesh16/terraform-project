@@ -8,10 +8,20 @@ variable "project_name" {
   default = "mycompany"
 }
 
+variable "kubernetes_version" {
+  type    = string
+  default = "1.30"
+}
+
 variable "developer_cidrs" {
-  description = "CIDR blocks allowed to reach the EKS public API server in dev"
+  description = "CIDR blocks allowed to reach the public EKS API endpoint. Restrict to your IP for security."
   type        = list(string)
   default     = ["0.0.0.0/0"]
+}
+
+variable "db_name" {
+  type    = string
+  default = "devdb"
 }
 
 variable "db_username" {

@@ -4,7 +4,7 @@
 
 resource "aws_kms_key" "eks" {
   description             = "KMS key for EKS cluster secret encryption"
-  deletion_window_in_days = 30
+  deletion_window_in_days = var.deletion_window_in_days
   enable_key_rotation     = true
 
   tags = merge(var.tags, {
@@ -19,7 +19,7 @@ resource "aws_kms_alias" "eks" {
 
 resource "aws_kms_key" "rds" {
   description             = "KMS key for RDS storage encryption"
-  deletion_window_in_days = 30
+  deletion_window_in_days = var.deletion_window_in_days
   enable_key_rotation     = true
 
   tags = merge(var.tags, {
@@ -34,7 +34,7 @@ resource "aws_kms_alias" "rds" {
 
 resource "aws_kms_key" "s3" {
   description             = "KMS key for S3 bucket encryption"
-  deletion_window_in_days = 30
+  deletion_window_in_days = var.deletion_window_in_days
   enable_key_rotation     = true
 
   tags = merge(var.tags, {

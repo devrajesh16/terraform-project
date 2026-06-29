@@ -182,6 +182,7 @@ Checkout  →  fmt check  →  validate  →  init  →  plan  →  [approval]  
 
 ## Further Reading
 
+- [docs/POC_WORKFLOW.md](docs/POC_WORKFLOW.md) — **Start here for POC** — apply → validate every resource → destroy
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Diagrams and design decisions
 - [docs/COMMANDS.md](docs/COMMANDS.md) — Terraform and AWS CLI command reference
 - [docs/INTERVIEW_QUESTIONS.md](docs/INTERVIEW_QUESTIONS.md) — Study guide for 3–8 YOE DevOps roles
