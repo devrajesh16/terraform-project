@@ -18,15 +18,9 @@ variable "kms_key_arn" {
 }
 
 variable "engine_version" {
-  description = "PostgreSQL full version (e.g. 17.2)"
+  description = "PostgreSQL full version (e.g. 16.6). Leave empty to use the AWS-default version automatically."
   type        = string
-  default     = "17.2"
-}
-
-variable "engine_version_major" {
-  description = "Major PostgreSQL version for parameter group family (e.g. 17)"
-  type        = string
-  default     = "17"
+  default     = ""
 }
 
 variable "instance_class" {

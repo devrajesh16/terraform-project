@@ -11,6 +11,22 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
+# Resolve engine version — use var.engine_version if set, otherwise fall back
+# to the AWS-default PostgreSQL version so this never breaks on minor version
+# deprecations.
+# ---------------------------------------------------------------------------
+data "aws_rds_engine_version" "postgres" {
+  engine       = "postgres"
+  version      = var.engine_version != "" ? var.engine_version : null
+  default_only = var.engine_version == ""
+}
+
+locals {
+  pg_version = data.aws_rds_engine_version.postgres.version
+  pg_major   = split(".", local.pg_version)[0]
+}
+
+# ---------------------------------------------------------------------------
 # DB Subnet Group — ensures RDS is placed in private subnets
 # ---------------------------------------------------------------------------
 resource "aws_db_subnet_group" "main" {
@@ -26,7 +42,7 @@ resource "aws_db_subnet_group" "main" {
 # ---------------------------------------------------------------------------
 resource "aws_db_parameter_group" "main" {
   name        = "${var.name_prefix}-postgres-params"
-  family      = "postgres${var.engine_version_major}"
+  family      = "postgres${local.pg_major}"
   description = "Custom parameter group for ${var.name_prefix}"
 
   parameter {
@@ -59,7 +75,7 @@ resource "aws_db_instance" "main" {
   identifier = "${var.name_prefix}-postgres"
 
   engine                = "postgres"
-  engine_version        = var.engine_version
+  engine_version        = local.pg_version
   instance_class        = var.instance_class
   allocated_storage     = var.allocated_storage
   max_allocated_storage = var.max_allocated_storage
