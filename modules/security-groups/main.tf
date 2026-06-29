@@ -68,12 +68,12 @@ resource "aws_security_group" "eks_cluster" {
 # ---------------------------------------------------------------------------
 resource "aws_security_group" "eks_nodes" {
   name        = "${var.name_prefix}-eks-nodes-sg"
-  description = "EKS worker nodes — allow inter-node and ALB traffic"
+  description = "EKS worker nodes - allow inter-node and ALB traffic"
   vpc_id      = var.vpc_id
 
   # Node-to-node communication
   ingress {
-    description = "Self — node to node"
+    description = "Self - node to node"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
