@@ -233,12 +233,9 @@ pipeline {
                     timeout(time: 30, unit: 'MINUTES') {
                         input(
                             message: "Approve Terraform ${actionLabel} on ${params.ENVIRONMENT}?",
-                            ok: "Approve ${actionLabel}",
-                            submitterParameter: 'APPROVER'
+                            ok: "Approve ${actionLabel}"
                         )
                     }
-
-                    echo "Approved by: ${env.APPROVER}"
                 }
             }
         }
