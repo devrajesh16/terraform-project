@@ -46,8 +46,9 @@ resource "aws_db_parameter_group" "main" {
   description = "Custom parameter group for ${var.name_prefix}"
 
   parameter {
+    # PostgreSQL 17+ uses an enum; "all" is equivalent to the old boolean true
     name  = "log_connections"
-    value = "1"
+    value = "all"
   }
 
   parameter {
