@@ -112,8 +112,7 @@ pipeline {
                                 alias/mycompany-terraform-state 2>/dev/null || true
 
                             # Derive the KMS key ID from the imported alias, then import the key
-                            KMS_KEY_ID=$(terraform state show aws_kms_alias.terraform_state 2>/dev/null \
-                                | grep 'target_key_id' | sed 's/.*= "\(.*\)"/\1/')
+                            KMS_KEY_ID=$(terraform state show aws_kms_alias.terraform_state 2>/dev/null | grep 'target_key_id' | awk -F'"' '{print $2}')
                             if [ -n "$KMS_KEY_ID" ]; then
                                 terraform import aws_kms_key.terraform_state "$KMS_KEY_ID" 2>/dev/null || true
                             fi
