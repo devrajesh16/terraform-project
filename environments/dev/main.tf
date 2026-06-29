@@ -144,13 +144,13 @@ module "rds" {
   db_username = var.db_username
   db_password = var.db_password
 
-  instance_class          = "db.t3.micro" # Free tier eligible
-  allocated_storage       = 20            # 20 GB — free tier limit
-  max_allocated_storage   = 20            # Disable autoscaling for POC
-  multi_az                = false         # No standby in dev
-  deletion_protection     = false         # Must be false for destroy to work
-  skip_final_snapshot     = true          # No snapshot on destroy
-  backup_retention_days   = 0             # Free tier does not allow automated backups
+  instance_class        = "db.t3.micro" # Free tier eligible
+  allocated_storage     = 20            # 20 GB — free tier limit
+  max_allocated_storage = 20            # Disable autoscaling for POC
+  multi_az              = false         # No standby in dev
+  deletion_protection   = false         # Must be false for destroy to work
+  skip_final_snapshot   = true          # No snapshot on destroy
+  backup_retention_days = 0             # Free tier does not allow automated backups
 
   tags = local.common_tags
 }
