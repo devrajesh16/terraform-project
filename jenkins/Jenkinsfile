@@ -96,25 +96,21 @@ pipeline {
                         # crashed before the state file could be saved).
                         if ! terraform state list 2>/dev/null | grep -q "aws_s3_bucket.terraform_state"; then
                             echo "=== State empty — importing any existing resources ==="
-                            terraform import aws_s3_bucket.terraform_state \
-                                mycompany-terraform-state-169588426347 2>/dev/null || true
-                            terraform import aws_s3_bucket_versioning.terraform_state \
-                                mycompany-terraform-state-169588426347 2>/dev/null || true
-                            terraform import aws_s3_bucket_server_side_encryption_configuration.terraform_state \
-                                mycompany-terraform-state-169588426347 2>/dev/null || true
-                            terraform import aws_s3_bucket_public_access_block.terraform_state \
-                                mycompany-terraform-state-169588426347 2>/dev/null || true
-                            terraform import aws_s3_bucket_logging.terraform_state \
-                                mycompany-terraform-state-169588426347 2>/dev/null || true
-                            terraform import aws_dynamodb_table.terraform_state_lock \
-                                mycompany-terraform-state-lock 2>/dev/null || true
-                            terraform import aws_kms_alias.terraform_state \
-                                alias/mycompany-terraform-state 2>/dev/null || true
+                            TF_VARS="-var=aws_account_id=169588426347"
+                            BUCKET="mycompany-terraform-state-169588426347"
+
+                            terraform import $TF_VARS aws_s3_bucket.terraform_state                                    $BUCKET 2>/dev/null || true
+                            terraform import $TF_VARS aws_s3_bucket_versioning.terraform_state                         $BUCKET 2>/dev/null || true
+                            terraform import $TF_VARS aws_s3_bucket_server_side_encryption_configuration.terraform_state $BUCKET 2>/dev/null || true
+                            terraform import $TF_VARS aws_s3_bucket_public_access_block.terraform_state                $BUCKET 2>/dev/null || true
+                            terraform import $TF_VARS aws_s3_bucket_logging.terraform_state                            $BUCKET 2>/dev/null || true
+                            terraform import $TF_VARS aws_dynamodb_table.terraform_state_lock                          mycompany-terraform-state-lock 2>/dev/null || true
+                            terraform import $TF_VARS aws_kms_alias.terraform_state                                    alias/mycompany-terraform-state 2>/dev/null || true
 
                             # Derive the KMS key ID from the imported alias, then import the key
                             KMS_KEY_ID=$(terraform state show aws_kms_alias.terraform_state 2>/dev/null | grep 'target_key_id' | awk -F'"' '{print $2}')
                             if [ -n "$KMS_KEY_ID" ]; then
-                                terraform import aws_kms_key.terraform_state "$KMS_KEY_ID" 2>/dev/null || true
+                                terraform import $TF_VARS aws_kms_key.terraform_state "$KMS_KEY_ID" 2>/dev/null || true
                             fi
                         fi
 
