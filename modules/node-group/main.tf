@@ -12,8 +12,8 @@ resource "aws_eks_node_group" "this" {
   node_role_arn   = var.node_role_arn
   subnet_ids      = var.subnet_ids
 
-  ami_type       = var.ami_type       # AL2_x86_64 | AL2_ARM_64 | BOTTLEROCKET_x86_64
-  capacity_type  = var.capacity_type  # ON_DEMAND | SPOT
+  ami_type       = var.ami_type      # AL2_x86_64 | AL2_ARM_64 | BOTTLEROCKET_x86_64
+  capacity_type  = var.capacity_type # ON_DEMAND | SPOT
   instance_types = var.instance_types
   disk_size      = var.disk_size
 
@@ -51,8 +51,8 @@ resource "aws_eks_node_group" "this" {
   }
 
   tags = merge(var.tags, {
-    Name                                        = "${var.cluster_name}-${var.node_group_name}"
-    "k8s.io/cluster-autoscaler/enabled"         = "true"
+    Name                                            = "${var.cluster_name}-${var.node_group_name}"
+    "k8s.io/cluster-autoscaler/enabled"             = "true"
     "k8s.io/cluster-autoscaler/${var.cluster_name}" = "owned"
   })
 }

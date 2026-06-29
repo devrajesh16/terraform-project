@@ -26,9 +26,9 @@ resource "aws_elasticache_replication_group" "main" {
   replication_group_id = "${var.name_prefix}-redis"
   description          = "Redis replication group for ${var.name_prefix}"
 
-  node_type            = var.node_type
-  port                 = 6379
-  num_cache_clusters   = var.num_cache_nodes
+  node_type          = var.node_type
+  port               = 6379
+  num_cache_clusters = var.num_cache_nodes
 
   parameter_group_name = aws_elasticache_parameter_group.main.name
   subnet_group_name    = aws_elasticache_subnet_group.main.name

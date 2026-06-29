@@ -19,8 +19,8 @@ resource "aws_eks_cluster" "main" {
     security_group_ids      = [var.cluster_security_group_id]
     endpoint_private_access = true
     # Set to false in prod so the API server is not reachable from the Internet
-    endpoint_public_access  = var.endpoint_public_access
-    public_access_cidrs     = var.public_access_cidrs
+    endpoint_public_access = var.endpoint_public_access
+    public_access_cidrs    = var.public_access_cidrs
   }
 
   # Encrypt Kubernetes secrets at rest using a customer-managed KMS key

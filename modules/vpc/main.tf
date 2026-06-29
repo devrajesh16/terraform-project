@@ -49,8 +49,8 @@ resource "aws_subnet" "public" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-public-${var.availability_zones[count.index]}"
     # EKS tag: lets the ALB Ingress Controller discover public subnets
-    "kubernetes.io/role/elb"                         = "1"
-    "kubernetes.io/cluster/${var.cluster_name}"      = "shared"
+    "kubernetes.io/role/elb"                    = "1"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   })
 }
 
@@ -67,8 +67,8 @@ resource "aws_subnet" "private" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-private-${var.availability_zones[count.index]}"
     # EKS tag: lets the ALB Ingress Controller discover private subnets
-    "kubernetes.io/role/internal-elb"                = "1"
-    "kubernetes.io/cluster/${var.cluster_name}"      = "shared"
+    "kubernetes.io/role/internal-elb"           = "1"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   })
 }
 

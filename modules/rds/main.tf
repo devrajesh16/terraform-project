@@ -58,14 +58,14 @@ resource "aws_db_parameter_group" "main" {
 resource "aws_db_instance" "main" {
   identifier = "${var.name_prefix}-postgres"
 
-  engine               = "postgres"
-  engine_version       = var.engine_version
-  instance_class       = var.instance_class
-  allocated_storage    = var.allocated_storage
+  engine                = "postgres"
+  engine_version        = var.engine_version
+  instance_class        = var.instance_class
+  allocated_storage     = var.allocated_storage
   max_allocated_storage = var.max_allocated_storage
-  storage_type         = "gp3"
-  storage_encrypted    = true
-  kms_key_id           = var.kms_key_arn
+  storage_type          = "gp3"
+  storage_encrypted     = true
+  kms_key_id            = var.kms_key_arn
 
   db_name  = var.db_name
   username = var.db_username
@@ -80,29 +80,29 @@ resource "aws_db_instance" "main" {
   multi_az = var.multi_az
 
   # Backups
-  backup_retention_period   = var.backup_retention_days
-  backup_window             = "03:00-04:00"
-  maintenance_window        = "Mon:04:00-Mon:05:00"
-  copy_tags_to_snapshot     = true
-  delete_automated_backups  = false
+  backup_retention_period  = var.backup_retention_days
+  backup_window            = "03:00-04:00"
+  maintenance_window       = "Mon:04:00-Mon:05:00"
+  copy_tags_to_snapshot    = true
+  delete_automated_backups = false
 
   # Monitoring
-  monitoring_interval             = 60  # Enhanced monitoring every 60 seconds
-  monitoring_role_arn             = aws_iam_role.rds_monitoring.arn
-  performance_insights_enabled    = true
-  performance_insights_kms_key_id = var.kms_key_arn
+  monitoring_interval                   = 60 # Enhanced monitoring every 60 seconds
+  monitoring_role_arn                   = aws_iam_role.rds_monitoring.arn
+  performance_insights_enabled          = true
+  performance_insights_kms_key_id       = var.kms_key_arn
   performance_insights_retention_period = 7
 
   # Logging to CloudWatch
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
   # Upgrades
-  auto_minor_version_upgrade = true
+  auto_minor_version_upgrade  = true
   allow_major_version_upgrade = false
 
   # Protection
-  deletion_protection      = var.deletion_protection
-  skip_final_snapshot      = var.skip_final_snapshot
+  deletion_protection       = var.deletion_protection
+  skip_final_snapshot       = var.skip_final_snapshot
   final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.name_prefix}-final-snapshot"
 
   tags = merge(var.tags, { Name = "${var.name_prefix}-postgres" })

@@ -31,7 +31,7 @@ locals {
 module "kms" {
   source                  = "../../modules/kms"
   name_prefix             = local.name_prefix
-  deletion_window_in_days = 7   # Minimum allowed — keys purge quickly after destroy
+  deletion_window_in_days = 7 # Minimum allowed — keys purge quickly after destroy
   tags                    = local.common_tags
 }
 
@@ -144,12 +144,12 @@ module "rds" {
   db_username = var.db_username
   db_password = var.db_password
 
-  instance_class        = "db.t3.micro"   # Free tier eligible
-  allocated_storage     = 20              # 20 GB — free tier limit
-  max_allocated_storage = 20              # Disable autoscaling for POC
-  multi_az              = false           # No standby in dev
-  deletion_protection   = false           # Must be false for destroy to work
-  skip_final_snapshot   = true            # No snapshot on destroy
+  instance_class        = "db.t3.micro" # Free tier eligible
+  allocated_storage     = 20            # 20 GB — free tier limit
+  max_allocated_storage = 20            # Disable autoscaling for POC
+  multi_az              = false         # No standby in dev
+  deletion_protection   = false         # Must be false for destroy to work
+  skip_final_snapshot   = true          # No snapshot on destroy
 
   tags = local.common_tags
 }

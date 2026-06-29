@@ -5,8 +5,8 @@
 # =============================================================================
 
 locals {
-  env         = "prod"
-  name_prefix = "${var.project_name}-${local.env}"
+  env          = "prod"
+  name_prefix  = "${var.project_name}-${local.env}"
   cluster_name = "${var.project_name}-${local.env}-eks"
 
   common_tags = {
@@ -128,7 +128,7 @@ module "eks" {
   public_subnet_ids         = module.vpc.public_subnet_ids
   cluster_security_group_id = module.security_groups.eks_cluster_sg_id
   kms_key_arn               = module.kms.eks_kms_key_arn
-  endpoint_public_access    = false   # prod: API server is private-only
+  endpoint_public_access    = false # prod: API server is private-only
   log_retention_days        = 90
   tags                      = local.common_tags
 }
@@ -205,9 +205,9 @@ module "rds" {
   security_group_id = module.security_groups.rds_sg_id
   kms_key_arn       = module.kms.rds_kms_key_arn
 
-  db_name      = var.db_name
-  db_username  = var.db_username
-  db_password  = var.db_password
+  db_name     = var.db_name
+  db_username = var.db_username
+  db_password = var.db_password
 
   instance_class        = "db.r6g.large"
   allocated_storage     = 100
