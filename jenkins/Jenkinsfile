@@ -21,11 +21,9 @@ pipeline {
     agent {
         // Use a Docker agent with Terraform pre-installed to avoid
         // polluting the Jenkins master with tool versions.
-        // Mount a persistent directory so the backend bootstrap state
-        // survives across builds (the workspace is wiped each run).
         docker {
             image 'hashicorp/terraform:1.6.6'
-            args  '--entrypoint="" -v /var/lib/jenkins/tf-backend-state:/tf-backend-state'
+            args  '--entrypoint=""'
         }
     }
 
@@ -80,8 +78,11 @@ pipeline {
             steps {
                 dir('backend') {
                     sh '''
-                        STATE_DIR=/tf-backend-state
-                        mkdir -p $STATE_DIR
+                        # Store state inside the workspace (Jenkins user already owns it).
+                        # cleanWs() is configured to exclude this directory so it persists
+                        # across builds, making every run after the first a no-op.
+                        STATE_DIR="${WORKSPACE}/.terraform-backend-state"
+                        mkdir -p "$STATE_DIR"
 
                         # Restore state from previous run so Terraform knows
                         # the bucket already exists and skips re-creation.
@@ -281,7 +282,8 @@ pipeline {
             dir(env.WORKING_DIR) {
                 sh 'rm -f tfplan tfplan.txt'
             }
-            cleanWs()
+            // Exclude the backend state directory so it persists across builds
+            cleanWs(patterns: [[pattern: '.terraform-backend-state/**', type: 'EXCLUDE']])
         }
     }
 }
