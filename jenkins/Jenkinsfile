@@ -1,0 +1,253 @@
+// =============================================================================
+// TERRAFORM CI/CD PIPELINE
+// =============================================================================
+// Branch strategy:
+//   feature/* → PR → develop → stage environment (auto-apply)
+//   develop   → PR → main    → prod environment  (manual-approval required)
+//
+// Required Jenkins credentials:
+//   AWS_ACCESS_KEY_ID     (Secret text)
+//   AWS_SECRET_ACCESS_KEY (Secret text)
+//   TF_VAR_db_password    (Secret text)
+//
+// Required Jenkins plugins:
+//   - Pipeline
+//   - AWS Credentials
+//   - AnsiColor
+//   - Slack Notification (optional)
+// =============================================================================
+
+pipeline {
+    agent {
+        // Use a Docker agent with Terraform pre-installed to avoid
+        // polluting the Jenkins master with tool versions.
+        docker {
+            image 'hashicorp/terraform:1.6.6'
+            args  '--entrypoint=""'
+        }
+    }
+
+    parameters {
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['dev', 'stage', 'prod'],
+            description: 'Target environment'
+        )
+        booleanParam(
+            name: 'DESTROY',
+            defaultValue: false,
+            description: 'Run terraform destroy instead of apply. Use with extreme caution.'
+        )
+    }
+
+    environment {
+        AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+        AWS_DEFAULT_REGION    = 'us-east-1'
+        TF_VAR_db_password    = credentials('TF_VAR_db_password')
+        TF_IN_AUTOMATION      = 'true'  // disables interactive prompts
+        TF_CLI_ARGS           = '-no-color'
+        WORKING_DIR           = "environments/${params.ENVIRONMENT}"
+    }
+
+    options {
+        ansiColor('xterm')
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        timeout(time: 60, unit: 'MINUTES')
+        disableConcurrentBuilds()  // prevent parallel runs on the same env
+    }
+
+    stages {
+        // ---------------------------------------------------------------
+        stage('Checkout') {
+        // ---------------------------------------------------------------
+            steps {
+                checkout scm
+                sh 'terraform version'
+                sh 'aws --version'
+            }
+        }
+
+        // ---------------------------------------------------------------
+        stage('Terraform Format Check') {
+        // ---------------------------------------------------------------
+            steps {
+                dir(env.WORKING_DIR) {
+                    sh '''
+                        echo "=== Checking Terraform formatting ==="
+                        terraform fmt -check -recursive -diff ../../
+                    '''
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------
+        stage('Terraform Validate') {
+        // ---------------------------------------------------------------
+            steps {
+                dir(env.WORKING_DIR) {
+                    sh '''
+                        echo "=== Validating Terraform configuration ==="
+                        terraform init -backend=false
+                        terraform validate
+                    '''
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------
+        stage('Terraform Init') {
+        // ---------------------------------------------------------------
+            steps {
+                dir(env.WORKING_DIR) {
+                    sh '''
+                        echo "=== Initialising Terraform with remote backend ==="
+                        terraform init \
+                            -input=false \
+                            -reconfigure
+                    '''
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------
+        stage('Terraform Plan') {
+        // ---------------------------------------------------------------
+            steps {
+                dir(env.WORKING_DIR) {
+                    script {
+                        def planCmd = params.DESTROY \
+                            ? 'terraform plan -destroy -out=tfplan -input=false' \
+                            : 'terraform plan -out=tfplan -input=false'
+
+                        sh """
+                            echo "=== Generating Terraform plan for ${params.ENVIRONMENT} ==="
+                            ${planCmd}
+                            terraform show -no-color tfplan > tfplan.txt
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                    // Archive plan as a build artifact for audit trail
+                    archiveArtifacts artifacts: "${env.WORKING_DIR}/tfplan.txt",
+                                     fingerprint: true
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------
+        stage('Plan Review') {
+        // ---------------------------------------------------------------
+            // Show the plan in the Jenkins console so approvers can read it
+            steps {
+                dir(env.WORKING_DIR) {
+                    sh 'cat tfplan.txt'
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------
+        stage('Manual Approval') {
+        // ---------------------------------------------------------------
+            // Only block for manual approval on stage and prod.
+            // Dev can auto-apply to keep the feedback loop fast.
+            when {
+                anyOf {
+                    expression { params.ENVIRONMENT == 'prod' }
+                    expression { params.ENVIRONMENT == 'stage' }
+                    expression { params.DESTROY == true }
+                }
+            }
+            steps {
+                script {
+                    def actionLabel = params.DESTROY ? 'DESTROY' : 'APPLY'
+                    def approvalMsg = """
+                        🚨 Approval required to ${actionLabel} on *${params.ENVIRONMENT}*.
+                        Review the plan artifact before approving.
+                        Build: ${env.BUILD_URL}
+                    """.stripIndent()
+
+                    // Optional: send Slack notification
+                    // slackSend(message: approvalMsg, color: 'warning')
+
+                    timeout(time: 30, unit: 'MINUTES') {
+                        input(
+                            message: "Approve Terraform ${actionLabel} on ${params.ENVIRONMENT}?",
+                            ok: "Approve ${actionLabel}",
+                            submitterParameter: 'APPROVER'
+                        )
+                    }
+
+                    echo "Approved by: ${env.APPROVER}"
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------
+        stage('Terraform Apply') {
+        // ---------------------------------------------------------------
+            when {
+                expression { params.DESTROY == false }
+            }
+            steps {
+                dir(env.WORKING_DIR) {
+                    sh '''
+                        echo "=== Applying Terraform changes to ${ENVIRONMENT} ==="
+                        terraform apply -input=false -auto-approve tfplan
+                    '''
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------
+        stage('Terraform Destroy') {
+        // ---------------------------------------------------------------
+            when {
+                expression { params.DESTROY == true }
+            }
+            steps {
+                dir(env.WORKING_DIR) {
+                    sh '''
+                        echo "=== DESTROYING ${ENVIRONMENT} environment ==="
+                        terraform apply -destroy -input=false -auto-approve tfplan
+                    '''
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------
+        stage('Post-Apply Outputs') {
+        // ---------------------------------------------------------------
+            when {
+                expression { params.DESTROY == false }
+            }
+            steps {
+                dir(env.WORKING_DIR) {
+                    sh 'terraform output -json > terraform-outputs.json'
+                    archiveArtifacts artifacts: 'terraform-outputs.json',
+                                     fingerprint: true
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Terraform pipeline completed successfully for ${params.ENVIRONMENT}"
+            // slackSend(message: "✅ Terraform ${params.ENVIRONMENT} succeeded.", color: 'good')
+        }
+        failure {
+            echo "❌ Terraform pipeline failed for ${params.ENVIRONMENT}"
+            // slackSend(message: "❌ Terraform ${params.ENVIRONMENT} FAILED.", color: 'danger')
+        }
+        always {
+            // Clean up plan files — they may contain sensitive values
+            dir(env.WORKING_DIR) {
+                sh 'rm -f tfplan tfplan.txt'
+            }
+            cleanWs()
+        }
+    }
+}

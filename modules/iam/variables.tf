@@ -1,0 +1,22 @@
+variable "name_prefix" {
+  description = "Prefix for IAM resource names"
+  type        = string
+}
+
+variable "oidc_provider_arn" {
+  description = "ARN of the OIDC provider attached to the EKS cluster (for IRSA)"
+  type        = string
+  default     = ""
+}
+
+variable "oidc_provider_url" {
+  description = "URL of the OIDC provider (without https://)"
+  type        = string
+  default     = ""
+}
+
+variable "tags" {
+  description = "Common tags"
+  type        = map(string)
+  default     = {}
+}
