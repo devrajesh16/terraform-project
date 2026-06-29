@@ -1,7 +1,7 @@
 # Terraform AWS Cloud Foundation
 
-Production-ready AWS infrastructure automation using Terraform modules.
-Targets DevOps Engineers with 3-8 years of experience.
+Production-ready AWS infrastructure provisioning using Terraform modules.
+This repository provisions the AWS platform only — application deployment lives in a separate repo.
 
 ---
 
@@ -10,90 +10,100 @@ Targets DevOps Engineers with 3-8 years of experience.
 ```
 terraform-cloud-foundation/
 │
-├── backend/                     # Remote state bootstrap (run once)
-│   ├── main.tf                  # S3 bucket + DynamoDB lock table + KMS
+├── backend/                     # Remote state bootstrap (run once per AWS account)
+│   ├── main.tf                  # S3 bucket + DynamoDB lock table + KMS key
 │   ├── variables.tf
 │   └── outputs.tf
 │
 ├── environments/
-│   ├── dev/                     # Development — SPOT nodes, single NAT, public API
-│   ├── stage/                   # Staging — mirrors prod topology, smaller instances
-│   └── prod/                    # Production — full HA, private API, Multi-AZ
-│       ├── versions.tf          # Terraform version + backend config
-│       ├── main.tf              # Module orchestration
-│       ├── variables.tf
-│       ├── outputs.tf
+│   ├── dev/                     # Development — cost-optimised, SPOT nodes, single NAT
+│   │   ├── versions.tf          # Terraform version constraint + S3 backend config
+│   │   ├── main.tf              # Module calls
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── stage/                   # Staging — mirrors prod topology at reduced scale
+│   └── prod/                    # Production — full HA, private EKS API, Multi-AZ
 │       └── terraform.tfvars.example
 │
 ├── modules/
-│   ├── vpc/                     # VPC, subnets, IGW, NAT GW, route tables
-│   ├── kms/                     # Customer-managed KMS keys (EKS, RDS, S3)
-│   ├── iam/                     # EKS cluster role, node role, IRSA roles
-│   ├── security-groups/         # ALB, EKS, RDS, Redis security groups
-│   ├── eks/                     # EKS cluster + OIDC provider + CW log group
-│   ├── node-group/              # Managed node groups with encrypted EBS + IMDSv2
-│   ├── ecr/                     # ECR repos with scan-on-push + lifecycle policy
-│   ├── rds/                     # RDS PostgreSQL with Multi-AZ + Enhanced Monitoring
-│   ├── elasticache/             # Redis with TLS + encryption + Multi-AZ
-│   ├── alb/                     # ALB with HTTPS redirect + access logs + WAF
-│   ├── route53/                 # DNS records + ACM certificate (DNS validation)
-│   ├── s3/                      # S3 buckets (ALB logs, assets) with KMS
-│   └── cloudwatch/              # Alarms (CPU/memory/DB/ALB) + dashboard + SNS
-│
-├── helm-chart/                  # Application Helm chart
-│   ├── Chart.yaml
-│   ├── values.yaml
-│   └── templates/
-│       ├── _helpers.tpl
-│       ├── deployment.yaml
-│       ├── service.yaml
-│       ├── ingress.yaml
-│       ├── hpa.yaml             # HorizontalPodAutoscaler
-│       └── pdb.yaml             # PodDisruptionBudget
+│   ├── vpc/                     # VPC, public/private subnets, IGW, NAT GW, route tables, flow logs
+│   ├── kms/                     # Customer-managed KMS keys for EKS, RDS, and S3
+│   ├── iam/                     # EKS cluster role, node role, IRSA roles (ALB controller, autoscaler)
+│   ├── security-groups/         # ALB, EKS control plane, EKS nodes, RDS, Redis security groups
+│   ├── eks/                     # EKS cluster, OIDC provider, KMS secret encryption, CW logging
+│   ├── node-group/              # Managed node groups — IMDSv2, encrypted EBS, launch template
+│   ├── ecr/                     # ECR repositories — scan on push, lifecycle policy, repo policy
+│   ├── rds/                     # RDS PostgreSQL — Multi-AZ, Enhanced Monitoring, encrypted
+│   ├── elasticache/             # Redis — TLS, KMS, Multi-AZ automatic failover
+│   ├── alb/                     # Application Load Balancer — HTTPS, WAF, access logs
+│   ├── route53/                 # DNS A records + ACM certificate (DNS validation)
+│   ├── s3/                      # Encrypted S3 buckets (ALB logs, assets)
+│   └── cloudwatch/              # Alarms (CPU/memory/DB/ALB), SNS topic, dashboard
 │
 ├── jenkins/
-│   └── Jenkinsfile              # Terraform CI/CD pipeline
-│
-├── scripts/
-│   ├── ecr-push.sh              # Docker build + ECR push helper
-│   └── helm-deploy.sh           # Helm upgrade/install helper
+│   └── Jenkinsfile              # Terraform CI/CD pipeline (fmt → validate → plan → approve → apply)
 │
 └── docs/
-    ├── ARCHITECTURE.md          # Diagrams and network design
-    ├── COMMANDS.md              # All commands you need
-    └── INTERVIEW_QUESTIONS.md   # Q&A for 3-8 YOE DevOps interviews
+    ├── ARCHITECTURE.md          # Network diagrams, CIDR table, security layer breakdown
+    ├── COMMANDS.md              # All Terraform and AWS CLI commands
+    └── INTERVIEW_QUESTIONS.md   # Q&A covering Terraform, VPC, EKS, IAM (3–8 YOE level)
 ```
 
 ---
 
-## CI/CD Flow
+## What This Repo Provisions
 
 ```
-Developer
-   │  git push feature/xyz
-   ▼
-GitHub
-   │  PR → develop (dev apply)
-   │  PR → main    (prod apply after approval)
-   ▼
-Jenkins Pipeline
-   ├─ terraform fmt --check
-   ├─ terraform validate
-   ├─ terraform init
-   ├─ terraform plan  ──► archived as build artifact
-   ├─ Manual Approval (stage + prod only)
-   └─ terraform apply
-         │
-         ▼
-   AWS Infrastructure
-         │
-         ▼
-   Application CI (separate repo)
-         │
-         ├─ docker build
-         ├─ docker push → ECR
-         └─ helm upgrade --install → EKS
+AWS Account
+│
+├── Remote State
+│   ├── S3 Bucket (versioned, KMS-encrypted, access-logged)
+│   └── DynamoDB Table (state locking)
+│
+├── KMS Customer-Managed Keys
+│   ├── EKS secrets encryption key
+│   ├── RDS storage encryption key
+│   └── S3 encryption key
+│
+├── VPC  (per environment)
+│   ├── Public subnets  (ALB, NAT Gateways)
+│   └── Private subnets (EKS nodes, RDS, Redis)
+│
+├── EKS Cluster
+│   ├── system-ng   node group  (ON_DEMAND, runs cluster add-ons)
+│   └── application-ng node group  (runs workloads)
+│
+├── Data Layer
+│   ├── RDS PostgreSQL  (Multi-AZ, encrypted, automated backups)
+│   └── ElastiCache Redis  (TLS, encrypted, Multi-AZ failover)
+│
+├── Networking
+│   ├── Application Load Balancer  (HTTPS, WAF, access logs)
+│   └── Route 53 records + ACM certificate
+│
+├── ECR Repositories  (registry only — image pushes happen in app CI)
+│
+└── Observability
+    ├── CloudWatch alarms  (EKS CPU/memory, RDS CPU/connections/storage, ALB 5xx/latency)
+    ├── CloudWatch dashboard
+    └── SNS alerts topic
 ```
+
+---
+
+## Environment Comparison
+
+| Feature                | dev               | stage             | prod              |
+|------------------------|-------------------|-------------------|-------------------|
+| EKS API endpoint       | Public            | Private           | Private           |
+| NAT Gateways           | 1                 | 3 (one per AZ)    | 3 (one per AZ)    |
+| Node capacity type     | SPOT              | ON_DEMAND         | ON_DEMAND         |
+| RDS instance           | db.t3.medium      | db.t3.large       | db.r6g.large      |
+| RDS Multi-AZ           | No                | Yes               | Yes               |
+| Redis nodes            | —                 | 2                 | 2                 |
+| Deletion protection    | No                | No                | Yes               |
+| VPC Flow Logs          | No                | Yes               | Yes               |
+| EKS log retention      | 7 days            | 30 days           | 90 days           |
 
 ---
 
@@ -107,76 +117,71 @@ terraform init
 terraform apply -var="aws_account_id=$(aws sts get-caller-identity --query Account --output text)"
 ```
 
+Note the output — it prints the exact backend block to paste into each environment's `versions.tf`.
+
 ### Step 2 — Deploy an environment
 
 ```bash
 cd environments/dev/
+
+# Fill in secrets (never commit this file)
 cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with real values
+vim terraform.tfvars
 
 terraform init
 terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-### Step 3 — Push your first Docker image
+### Step 3 — Verify EKS cluster
 
 ```bash
-./scripts/ecr-push.sh backend-service v1.0.0 us-east-1 $(aws sts get-caller-identity --query Account --output text)
-```
-
-### Step 4 — Deploy application to Kubernetes
-
-```bash
-# Update kubeconfig (shown in terraform output)
+# Command is printed in terraform output as `kubeconfig_command`
 aws eks update-kubeconfig --region us-east-1 --name mycompany-dev-eks
-
-# Deploy with Helm
-helm upgrade --install myapp ./helm-chart \
-  --namespace development \
-  --create-namespace \
-  --set image.tag=v1.0.0 \
-  --wait --atomic
+kubectl get nodes
+kubectl get pods -A
 ```
 
 ---
 
-## Environment Comparison
+## Jenkins CI/CD Pipeline
 
-| Feature               | dev              | stage            | prod              |
-|-----------------------|------------------|------------------|-------------------|
-| EKS API endpoint      | Public           | Private          | Private           |
-| NAT Gateways          | 1 (single AZ)   | 3 (per AZ)      | 3 (per AZ)       |
-| Node capacity type    | SPOT             | ON_DEMAND        | ON_DEMAND         |
-| RDS Multi-AZ          | No               | Yes              | Yes               |
-| Deletion protection   | No               | No               | Yes               |
-| Flow Logs             | No               | Yes              | Yes               |
-| Log retention (EKS)   | 7 days           | 30 days          | 90 days           |
+The `jenkins/Jenkinsfile` runs these stages against the selected environment:
+
+```
+Checkout  →  fmt check  →  validate  →  init  →  plan  →  [approval]  →  apply
+```
+
+- **dev**: auto-applies on every merge to `develop`
+- **stage / prod**: blocks on a manual approval step; plan is archived as a build artifact for audit
+
+### Required Jenkins credentials
+
+| Credential ID            | Type        | Purpose                  |
+|--------------------------|-------------|--------------------------|
+| `AWS_ACCESS_KEY_ID`      | Secret text | AWS authentication       |
+| `AWS_SECRET_ACCESS_KEY`  | Secret text | AWS authentication       |
+| `TF_VAR_db_password`     | Secret text | RDS password injection   |
 
 ---
 
-## Production Best Practices Implemented
+## Security Highlights
 
-- **Remote state** — S3 + DynamoDB locking + KMS encryption
-- **State isolation** — Each environment has its own state key
-- **Secrets** — `sensitive = true`, injected via env vars, never in git
-- **IMDSv2 required** — Prevents SSRF credential theft from pods
-- **IRSA** — Pod-level IAM roles (not node-level)
-- **Private EKS API** — Control plane not reachable from internet in prod
-- **EBS encryption** — All node volumes encrypted with CMK
-- **Multi-AZ** — VPC, NAT GW, EKS nodes, RDS, Redis all span AZs
-- **Lifecycle rules** — ECR purges old images; S3 expires old logs
-- **PodDisruptionBudget** — Maintains availability during node drains
-- **HPA** — Auto-scales pods on CPU + memory
-- **Cluster Autoscaler** — Auto-scales node groups
-- **CloudWatch alarms** — Alerts on CPU, memory, DB, ALB errors
-- **WAF** — OWASP protection on the ALB
-- **VPC Flow Logs** — Full network audit trail
+| Control | Implementation |
+|---------|---------------|
+| Encryption at rest | KMS CMKs on EKS secrets, RDS, ElastiCache, S3, EBS volumes |
+| Encryption in transit | TLS on ALB, ElastiCache; HTTPS-only listener with redirect |
+| No public nodes | EKS worker nodes in private subnets only |
+| IMDSv2 required | Prevents SSRF credential theft from pods |
+| IRSA | Pod-level IAM roles — not node-level broad permissions |
+| Private EKS API (prod) | Control plane unreachable from internet |
+| State locking | DynamoDB prevents concurrent `terraform apply` runs |
+| Secrets never in git | `sensitive = true`, injected via env vars or Secrets Manager |
 
 ---
 
 ## Further Reading
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Diagrams and network design
-- [docs/COMMANDS.md](docs/COMMANDS.md) — Every command you need
-- [docs/INTERVIEW_QUESTIONS.md](docs/INTERVIEW_QUESTIONS.md) — Q&A study guide
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Diagrams and design decisions
+- [docs/COMMANDS.md](docs/COMMANDS.md) — Terraform and AWS CLI command reference
+- [docs/INTERVIEW_QUESTIONS.md](docs/INTERVIEW_QUESTIONS.md) — Study guide for 3–8 YOE DevOps roles
