@@ -84,13 +84,41 @@ pipeline {
                         STATE_DIR="${WORKSPACE}/.terraform-backend-state"
                         mkdir -p "$STATE_DIR"
 
-                        # Restore state from previous run so Terraform knows
-                        # the bucket already exists and skips re-creation.
+                        # Restore state from previous run
                         if [ -f "$STATE_DIR/terraform.tfstate" ]; then
                             cp "$STATE_DIR/terraform.tfstate" .
                         fi
 
                         terraform init
+
+                        # If state is empty, import any resources that already exist in AWS.
+                        # This handles the case where state was lost mid-run (e.g. first run
+                        # crashed before the state file could be saved).
+                        if ! terraform state list 2>/dev/null | grep -q "aws_s3_bucket.terraform_state"; then
+                            echo "=== State empty — importing any existing resources ==="
+                            terraform import aws_s3_bucket.terraform_state \
+                                mycompany-terraform-state-169588426347 2>/dev/null || true
+                            terraform import aws_s3_bucket_versioning.terraform_state \
+                                mycompany-terraform-state-169588426347 2>/dev/null || true
+                            terraform import aws_s3_bucket_server_side_encryption_configuration.terraform_state \
+                                mycompany-terraform-state-169588426347 2>/dev/null || true
+                            terraform import aws_s3_bucket_public_access_block.terraform_state \
+                                mycompany-terraform-state-169588426347 2>/dev/null || true
+                            terraform import aws_s3_bucket_logging.terraform_state \
+                                mycompany-terraform-state-169588426347 2>/dev/null || true
+                            terraform import aws_dynamodb_table.terraform_state_lock \
+                                mycompany-terraform-state-lock 2>/dev/null || true
+                            terraform import aws_kms_alias.terraform_state \
+                                alias/mycompany-terraform-state 2>/dev/null || true
+
+                            # Derive the KMS key ID from the imported alias, then import the key
+                            KMS_KEY_ID=$(terraform state show aws_kms_alias.terraform_state 2>/dev/null \
+                                | grep 'target_key_id' | sed 's/.*= "\(.*\)"/\1/')
+                            if [ -n "$KMS_KEY_ID" ]; then
+                                terraform import aws_kms_key.terraform_state "$KMS_KEY_ID" 2>/dev/null || true
+                            fi
+                        fi
+
                         terraform apply \
                             -auto-approve \
                             -input=false \
