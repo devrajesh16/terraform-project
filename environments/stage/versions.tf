@@ -13,7 +13,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "mycompany-terraform-state-<ACCOUNT_ID>"
+    bucket         = "mycompany-terraform-state-169588426347"
     key            = "stage/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = true
