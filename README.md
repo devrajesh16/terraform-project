@@ -200,6 +200,7 @@ Checkout → Bootstrap Backend → fmt check → validate → init → plan → 
 
 ## Further Reading
 
+- [docs/TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md) — **Complete trainer document** — what this code does, module walkthroughs, step-by-step setup, common errors, interview Q&A
 - [docs/POC_WORKFLOW.md](docs/POC_WORKFLOW.md) — **Start here for POC** — apply → validate every resource → destroy
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Diagrams and design decisions
 - [docs/COMMANDS.md](docs/COMMANDS.md) — Terraform and AWS CLI command reference
