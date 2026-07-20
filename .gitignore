@@ -34,3 +34,8 @@ Thumbs.db
 
 # Scripts output
 *.log
+*.tfvars
+!*.tfvars.example
+.terraform/
+*.tfstate*
+.terraform.lock.hcl
