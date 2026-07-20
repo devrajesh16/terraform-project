@@ -13,12 +13,12 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "mycompany-terraform-state-169588426347"
+    bucket         = "rajesh-terraform-terraform-state-289984444670"
     key            = "dev/terraform.tfstate"
-    region         = "us-east-1"
+    region         = "ap-south-1"
     encrypt        = true
-    kms_key_id     = "alias/mycompany-terraform-state"
-    dynamodb_table = "mycompany-terraform-state-lock"
+    kms_key_id     = "alias/rajesh-terraform-terraform-state"
+    dynamodb_table = "rajesh-terraform-terraform-state-lock"
   }
 }
 
