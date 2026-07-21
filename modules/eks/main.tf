@@ -41,8 +41,7 @@ resource "aws_eks_cluster" "main" {
   ]
 
   # Cluster must not be deleted while node groups exist
-  depends_on = [var.cluster_role_policy_attachment_ids]
-
+  depends_on = [var.cluster_role_policy_attachment_ids, aws_cloudwatch_log_group.eks]
   tags = merge(var.tags, {
     Name = var.cluster_name
   })
