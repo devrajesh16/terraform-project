@@ -1,6 +1,6 @@
 # Terraform AWS Cloud Foundation — Complete Training Guide
 
-**Prepared by:** Srikanth  
+**Prepared by:** Rajesh  
 **Level:** Beginner to Intermediate DevOps / Cloud Engineers  
 **Goal:** Understand, deploy, and destroy a production-grade AWS infrastructure using Terraform and Jenkins CI/CD from scratch.
 
